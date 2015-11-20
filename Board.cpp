@@ -1,29 +1,32 @@
 #include "Board.h"
-#include "pieces.h"
 #include <iostream>
-//Play field is 10 cells wide and at least 22 cells high, with the topmost two hidden.
+#include "Pieces.h"
 
-Board::Board(SDL_Renderer *renderer, SDL_Window *window, TTF_Font *fnt) {
+using namespace std;
+
+Board::Board(SDL_Renderer *renderer, SDL_Window *window, SDL_Color backgroundColor, TTF_Font *fnt){
 	painter = renderer;
 	frame   = window;
+	bgColor = backgroundColor;
 	font    = fnt;
 	SDL_GetWindowSize(frame, &winW, &winH);
-	gameboard = {winW / 3, 0, winW/3, winH};
-	blocklength = gameboard.w / boardW ;
+	blocklength = (winW / 3) / boardW ;
+	gameboard   = {(winW / 3), 0, blocklength * boardW, blocklength * (boardH - 1)};
 }
 
 Board::~Board() {
 
 }
 
-void Board::draw_board(){
+void Board::drawBoard(){
 	//Draws the grid for the playfield
 	SDL_Color orig_color;
 	SDL_GetRenderDrawColor(painter, &orig_color.r, &orig_color.g, &orig_color.b, &orig_color.a);
 
-	SDL_SetRenderDrawColor(painter, 50,50,50,255);
+	SDL_SetRenderDrawColor(painter, bgColor.r, bgColor.g, bgColor.b, 255);
 	SDL_RenderFillRect(painter, &gameboard);
 
+	/*
 	SDL_SetRenderDrawColor(painter, 255,255,255,255);
 	SDL_RenderDrawRect(painter, &gameboard);
 
@@ -38,11 +41,11 @@ void Board::draw_board(){
 				gameboard.x, blocklength * r,
 				gameboard.x + gameboard.w, blocklength * r);
 	}
-
+	*/
 	SDL_SetRenderDrawColor(painter, orig_color.r, orig_color.g, orig_color.b, orig_color.a);
 }
 
-void Board::draw_next(int next, SDL_Color nColor){
+void Board::drawNext(int next, SDL_Color nColor){
 	SDL_Color orig_color;
 	SDL_GetRenderDrawColor(painter, &orig_color.r, &orig_color.g, &orig_color.b, &orig_color.a);
 
@@ -54,9 +57,10 @@ void Board::draw_next(int next, SDL_Color nColor){
 	SDL_SetRenderDrawColor(painter, 255,255,255,255);
 	SDL_RenderDrawRect(painter, &container);
 
+	int doShift = next == 6 || next == 3;
 	for(int i=0; i<4; i++){
-		int x = container.x + ((1 + pieces[next][3][i].x) * blocklength) - (blocklength / 2);
-		int y = container.y + ((3 - pieces[next][3][i].y) * blocklength);
+		int x = container.x + ((1 + doShift + Pieces[next][3][i].x) * blocklength) - (blocklength / 2) + (8 * !doShift);
+		int y = container.y + ((3 - Pieces[next][3][i].y) * blocklength);
 		SDL_Rect blk = {x, y, blocklength, blocklength};
 
 		SDL_SetRenderDrawColor(painter, nColor.r, nColor.g, nColor.b, nColor.a);
@@ -65,21 +69,21 @@ void Board::draw_next(int next, SDL_Color nColor){
 		SDL_RenderDrawRect(painter, &blk);
 	}
 
-	RenderText(container.x + 17, container.y + 5, "NEXT", {50,50,50,255}, {255,255,255,255});
+	renderText(container.x + 17, container.y + 5, "NEXT", {50,50,50,255}, {255,255,255,255});
 
 	SDL_SetRenderDrawColor(painter, orig_color.r, orig_color.g, orig_color.b, orig_color.a);
 }
 
-void Board::draw_score(int score){
+void Board::drawScore(int score){
 	char *scr = (char*) malloc(20);
 	sprintf(scr, "Lines: %d", score);
-	RenderText(gameboard.x + gameboard.w + 52, 10, scr, {150, 150, 150, 255}, {255,255,255,255});
+	renderText(gameboard.x + gameboard.w + 52, 10, scr, {150, 150, 150, 255}, {255,255,255,255});
 	free(scr);
 }
 
-void Board::RenderText(int x,int y, char* message, SDL_Color bg,SDL_Color fg){
-	SDL_Texture* text;
-	SDL_Surface* surface;
+void Board::renderText(int x,int y, const char* message, SDL_Color bg,SDL_Color fg){
+	SDL_Texture *text;
+	SDL_Surface *surface;
 	SDL_Rect textrect;
 	surface=TTF_RenderText_Shaded(font,message,fg,bg);
 	text=SDL_CreateTextureFromSurface(painter,surface);
@@ -93,17 +97,17 @@ void Board::RenderText(int x,int y, char* message, SDL_Color bg,SDL_Color fg){
 	SDL_DestroyTexture(text);
 }
 
-void Board::set_block(block b){
+void Board::setBlock(Block b){
 	playfield[b.coord.x][b.coord.y] = b;
 }
 
-bool Board::available_space(int piece, int orientation, SDL_Point coord){
+bool Board::availableSpace(int piece, int orientation, SDL_Point coord){
 	int x,y;
 	bool available = inbounds(piece, orientation, coord);
 	if(available){
 		for(int i=0; i<4; i++){
-			y = pieces[piece][orientation][i].y + coord.y;
-			x = pieces[piece][orientation][i].x + coord.x;
+			y = Pieces[piece][orientation][i].y + coord.y;
+			x = Pieces[piece][orientation][i].x + coord.x;
 
 			if(playfield[x][y].isEmpty == false){
 				return false;
@@ -116,8 +120,8 @@ bool Board::available_space(int piece, int orientation, SDL_Point coord){
 bool Board::inbounds(int piece, int orientation, SDL_Point coord){
 	int x,y;
 	for(int i=0; i<4; i++){
-		y = pieces[piece][orientation][i].y + coord.y;
-		x = pieces[piece][orientation][i].x + coord.x;
+		y = Pieces[piece][orientation][i].y + coord.y;
+		x = Pieces[piece][orientation][i].x + coord.x;
 		if( !((x>=0 && x<boardW) && (y>=0)) ){
 			return false;
 		}
@@ -125,17 +129,30 @@ bool Board::inbounds(int piece, int orientation, SDL_Point coord){
 	return true;
 }
 
-void Board::set_piece(int piece, int orientation, SDL_Point coord, SDL_Color color, bool isEmpty){
+SDL_Point Board::findFloor(int piece, int orientation, SDL_Point coord){
+	SDL_Point floor = {coord.x, coord.y};
+	bool collision;
+
+	while(true){
+		collision = !availableSpace(piece, orientation, { floor.x, floor.y - 1});
+		if(collision)
+			break;
+		floor.y -= 1;
+	}
+	return floor;
+}
+
+void Board::setPiece(int piece, int orientation, SDL_Point coord, SDL_Color color, bool isEmpty){
 	if(inbounds(piece, orientation, coord)){
 		for(int i=0; i<4; i++){
-			int x = pieces[piece][orientation][i].x + coord.x;
-			int y = pieces[piece][orientation][i].y + coord.y;
-			set_block({ {x, y}, color, isEmpty});
+			int x = Pieces[piece][orientation][i].x + coord.x;
+			int y = Pieces[piece][orientation][i].y + coord.y;
+			setBlock({ {x, y}, color, isEmpty});
 		}
 	}
 }
 
-void Board::draw_block(block *b){
+void Board::drawBlock(Block *b, SDL_Color outline = {0,0,0,255}){
 	if(b->isEmpty == false){
 		SDL_Color orig_color;
 		SDL_GetRenderDrawColor(painter, &orig_color.r, &orig_color.g, &orig_color.b, &orig_color.a);
@@ -153,22 +170,34 @@ void Board::draw_block(block *b){
 		SDL_SetRenderDrawColor(painter, color.r, color.g, color.b, color.a);
 		SDL_RenderFillRect(painter, &blk);
 
-		SDL_SetRenderDrawColor(painter, 0,0,0,255);
+		SDL_SetRenderDrawColor(painter, outline.r,outline.g,outline.b,outline.a);
 		SDL_RenderDrawRect(painter,&blk);
 
 		SDL_SetRenderDrawColor(painter, orig_color.r, orig_color.g, orig_color.b, orig_color.a);
 	}
 }
 
-void Board::draw_playfield(){
-	for(int x=0; x<boardW; x++){
-		for(int y=0; y<boardH; y++){
-			draw_block(&playfield[x][y]);
+void Board::drawPiece(int piece, int orientation, SDL_Point coord, SDL_Color color, SDL_Color outline = {0,0,0,255}){
+	Block blk;
+	if(inbounds(piece, orientation, coord)){
+		for(int i=0; i<4; i++){
+			int x = Pieces[piece][orientation][i].x + coord.x;
+			int y = Pieces[piece][orientation][i].y + coord.y;
+			blk = { {x, y}, color, false};
+			drawBlock(&blk,outline);
 		}
 	}
 }
 
-int Board::clear_lines(){
+void Board::drawPlayfield(){
+	for(int x=0; x<boardW; x++){
+		for(int y=0; y<boardH; y++){
+			drawBlock(&playfield[x][y]);
+		}
+	}
+}
+
+int Board::clearLines(){
 	int line_count  = 0;
 	int empty_count = 0;
 	for(int y=0; y<boardH; y++){
@@ -183,7 +212,7 @@ int Board::clear_lines(){
 			}
 			for(int row = y; row<boardH - 1; row++){
 				for(int col=0; col<boardW; col++){
-					set_block({{col, row}, playfield[col][row+1].color, playfield[col][row+1].isEmpty});
+					setBlock({{col, row}, playfield[col][row+1].color, playfield[col][row+1].isEmpty});
 				}
 			}
 			y=-1;

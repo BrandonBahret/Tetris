@@ -1,12 +1,10 @@
-#ifndef BOARD_H_
-#define BOARD_H_
-
-#include "main.h"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 
 #define boardW 10
 #define boardH 24
 
-struct block{
+struct Block{
 	SDL_Point coord;
 	SDL_Color color = {0,0,0,255};
 	bool isEmpty = true;
@@ -22,25 +20,26 @@ class Board {
 
 	public:
 		SDL_Rect gameboard;
-		block playfield[boardW][boardH+1];
-		Board(SDL_Renderer *renderer, SDL_Window *window, TTF_Font *fnt);
+		SDL_Color bgColor;
+		Block playfield[boardW][boardH+2];
+		Board(SDL_Renderer *renderer, SDL_Window *window, SDL_Color backgroundColor, TTF_Font *fnt);
 		virtual ~Board();
 
-		bool available_space(int piece, int orientation, SDL_Point coord);
+		bool availableSpace(int piece, int orientation, SDL_Point coord);
 		bool inbounds(int piece, int orientation, SDL_Point coord);
+		SDL_Point findFloor(int piece, int orientation, SDL_Point coord);
 
-		void draw_score(int score);
-		void draw_board();
-		void draw_block(block *b);
-		void draw_playfield();
-		void draw_next(int next, SDL_Color nColor);
+		void drawScore(int score);
+		void drawBoard();
+		void drawBlock(Block *b, SDL_Color outline);
+		void drawPiece(int piece, int orientation, SDL_Point coord, SDL_Color color, SDL_Color outline);
+		void drawPlayfield();
+		void drawNext(int next, SDL_Color nColor);
 
-		void RenderText(int x,int y, char* message, SDL_Color bg,SDL_Color fg);
+		void renderText(int x,int y, const char* message, SDL_Color bg,SDL_Color fg);
 
-		void set_block(block b);
-		void set_piece(int piece, int orientation, SDL_Point coord, SDL_Color color, bool isEmpty);
+		void setBlock(Block b);
+		void setPiece(int piece, int orientation, SDL_Point coord, SDL_Color color, bool isEmpty);
 
-		int clear_lines();
+		int clearLines();
 };
-
-#endif /* BOARD_H_ */
